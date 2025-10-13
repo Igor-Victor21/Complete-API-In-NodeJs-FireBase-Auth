@@ -1,60 +1,37 @@
-import { db } from '../config/firebase.js';
+import admin from '../config/firebase.js';
+import zxcvbn from 'zxcvbn';
 
-export default {
+const MIN_PASSWORD_SCORE = 7;
+const userController = {
   create: async (req, res) => {
-    try {
-      const { fullName, email, password, cpf, cep, address, complement, numberPhone, dateOfBirth } = req.body;
-      if (!fullName || !email || !cpf)
-        return res.status(400).json({ error: 'Nome completo, email e CPF são obrigatórios' });
+    const { displayName, email, password } = req.body;
 
-      const userData = {
-        fullName,
+    if (!displayName || !email || !password) {
+      return res.status(400).json({ message: 'Nome, email e senha são obrigatórios' });
+    }
+
+    // Verifica força da senha
+    const result = zxcvbn(password);
+    if (result.score < MIN_PASSWORD_SCORE) {
+      return res.status(400).json({ message: 'Senha muito fraca. Use letras, números e símbolos.' });
+    }
+
+    try {
+      const userRecord = await admin.auth().createUser({
         email,
         password,
-        cpf,
-        cep: cep || null,
-        address: address || null,
-        complement: complement || null,
-        numberPhone: numberPhone || null,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth).toISOString().split('T')[0] : null
-      };
+        displayName
+      });
 
-      const docRef = await db.collection('users').add(userData);
-      return res.status(201).json({ id: docRef.id, ...userData });
-    } catch (error) {
-      console.error('Erro detalhado:', error);
-      return res.status(500).json({ error: 'Falha ao criar usuário' });
-    }
-  },
+      // Você pode adicionar claims default de usuário comum
+      await admin.auth().setCustomUserClaims(userRecord.uid, { admin: false });
 
-  read: async (req, res) => {
-    try {
-      const snapshot = await db.collection('users').get();
-      const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      return res.status(200).json(users);
-    } catch (error) {
-      return res.status(500).json({ error: 'Erro ao ler usuários' });
-    }
-  },
-
-  update: async (req, res) => {
-    const uid = req.params.id;
-    const data = req.body;
-    try {
-      await db.collection('users').doc(uid).update(data);
-      return res.status(200).json({ message: 'Usuário atualizado com sucesso' });
-    } catch (error) {
-      return res.status(500).json({ error: 'Erro ao atualizar usuário' });
-    }
-  },
-
-  delete: async (req, res) => {
-    const uid = req.params.id;
-    try {
-      await db.collection('users').doc(uid).delete();
-      return res.status(200).json({ message: 'Usuário deletado com sucesso' });
-    } catch (error) {
-      return res.status(500).json({ error: 'Erro ao deletar usuário' });
+      return res.json({ message: 'Usuário criado com sucesso!', uid: userRecord.uid });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: 'Erro ao criar usuário', error: err });
     }
   }
 };
+
+export default userController;

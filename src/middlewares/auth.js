@@ -1,17 +1,12 @@
 import admin from '../config/firebase.js';
 
-// Verifica se o usuário está logado
 export const verifyToken = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  const token = req.cookies.token; // pega do cookie HttpOnly
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Token não fornecido" });
-  }
-
-  const idToken = authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Token não fornecido" });
 
   try {
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    const decoded = await admin.auth().verifyIdToken(token);
     req.user = decoded;
     next();
   } catch (err) {
@@ -19,10 +14,7 @@ export const verifyToken = async (req, res, next) => {
   }
 };
 
-// Verifica se o usuário é admin
 export const verifyAdmin = (req, res, next) => {
-  if (!req.user.admin) {
-    return res.status(403).json({ message: "Acesso negado" });
-  }
+  if (!req.user.admin) return res.status(403).json({ message: "Acesso negado" });
   next();
 };
