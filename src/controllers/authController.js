@@ -1,5 +1,7 @@
 import fetch from 'node-fetch';
 import admin from '../config/firebase.js';
+import nodemailer from 'nodemailer';
+
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
@@ -40,6 +42,43 @@ export const login = async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Erro ao realizar login' });
+  }
+};
+
+// Enviar email de redefinição de senha
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) return res.status(400).json({ message: "Email é obrigatório" });
+
+  try {
+    // Gera link de redefinição de senha no Firebase
+    const link = await admin.auth().generatePasswordResetLink(email);
+
+    // Configura Nodemailer com seu e-mail (remetente)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER, // seu e-mail
+        pass: process.env.EMAIL_PASS  // senha de app
+      }
+    });
+
+    // Mensagem do e-mail
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email, // e-mail do usuário
+      subject: 'Redefinição de senha',
+      html: `<p>Olá! Clique no link abaixo para redefinir sua senha:</p>
+             <a href="${link}">Redefinir senha</a>`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ message: "Link de redefinição de senha enviado com sucesso!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erro ao enviar email", error: err.message });
   }
 };
 
