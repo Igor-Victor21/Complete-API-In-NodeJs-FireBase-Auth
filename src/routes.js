@@ -1,3 +1,4 @@
+import admin from './config/firebase.js'
 import express from 'express';
 import userController from './controllers/userController.js';
 import productController from './controllers/product.js';
@@ -7,10 +8,6 @@ import { login, logout, forgotPassword  } from './controllers/authController.js'
 
 import { makeAdmin, removeAdmin } from './controllers/adminController.js';
 import { verifyToken, verifyAdmin } from './middlewares/auth.js';
-
-import { sendPasswordResetEmail } from './utils/email.js';
-
-
 
 const { Router } = express;
 const routes = Router();
@@ -48,6 +45,22 @@ routes.post('/remove-admin/:uid', verifyToken, verifyAdmin, removeAdmin);
 
 // ROTA REDEFINIR SENHA 
 routes.post("/forgot-password", forgotPassword);
+
+//Rota de cadastro de admin
+routes.post("/make-admin", async (req, res) => {
+  const { uid, secret } = req.body;
+
+  if (secret !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ message: "Acesso negado" });
+  }
+
+  try {
+    await admin.auth().setCustomUserClaims(uid, { admin: true });
+    return res.json({ message: `✅ Usuário ${uid} agora é ADMIN` });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 
 
