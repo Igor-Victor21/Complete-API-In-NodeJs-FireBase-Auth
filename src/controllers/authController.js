@@ -2,12 +2,12 @@ import fetch from 'node-fetch';
 import admin from '../config/firebase.js';
 import nodemailer from 'nodemailer';
 
-
 export const login = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ message: 'Email e senha obrigatórios' });
 
   try {
+    // Faz login via Firebase Auth REST API
     const response = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`,
       {
@@ -23,6 +23,10 @@ export const login = async (req, res) => {
     const idToken = data.idToken;
     const decoded = await admin.auth().verifyIdToken(idToken);
 
+    // Busca usuário atualizado no Firebase para pegar claims atuais
+    const firebaseUser = await admin.auth().getUser(decoded.uid);
+    const isAdmin = firebaseUser.customClaims?.admin || false;
+
     // Cria cookie seguro HttpOnly
     res.cookie('token', idToken, {
       httpOnly: true,
@@ -36,7 +40,7 @@ export const login = async (req, res) => {
       user: {
         uid: decoded.uid,
         email: decoded.email,
-        admin: decoded.admin || false // claim admin
+        admin: isAdmin
       }
     });
   } catch (err) {
@@ -48,26 +52,22 @@ export const login = async (req, res) => {
 // Enviar email de redefinição de senha
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
-
   if (!email) return res.status(400).json({ message: "Email é obrigatório" });
 
   try {
-    // Gera link de redefinição de senha no Firebase
     const link = await admin.auth().generatePasswordResetLink(email);
 
-    // Configura Nodemailer com seu e-mail (remetente)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER, // seu e-mail
-        pass: process.env.EMAIL_PASS  // senha de app
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
       }
     });
 
-    // Mensagem do e-mail
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: email, // e-mail do usuário
+      to: email,
       subject: 'Redefinição de senha',
       html: `<p>Olá! Clique no link abaixo para redefinir sua senha:</p>
              <a href="${link}">Redefinir senha</a>`
