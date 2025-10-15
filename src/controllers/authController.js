@@ -1,12 +1,12 @@
 import fetch from 'node-fetch';
 import admin from '../config/firebase.js';
 import nodemailer from 'nodemailer';
+import { UserRecord } from 'firebase-admin/auth';
+
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Email e senha obrigatórios' });
-  }
+  if (!email || !password) return res.status(400).json({ message: 'Email e senha obrigatórios' });
 
   try {
     const response = await fetch(
@@ -19,9 +19,7 @@ export const login = async (req, res) => {
     );
 
     const data = await response.json();
-    if (data.error) {
-      return res.status(401).json({ message: 'Email ou senha inválidos' });
-    }
+    if (data.error) return res.status(401).json({ message: 'Email ou senha inválidos' });
 
     const idToken = data.idToken;
     const decoded = await admin.auth().verifyIdToken(idToken);
@@ -31,18 +29,15 @@ export const login = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 60 * 60 * 1000, // 1h
+      maxAge: 60 * 60 * 1000 // 1 hora
     });
 
-    // Busca dados básicos do usuário
-    const userRecord = await admin.auth().getUser(decoded.uid);
-
+    // Retorna informações do usuário para o front
     return res.json({
       user: {
-        uid: userRecord.uid,
-        email: userRecord.email,
-        displayName: userRecord.displayName || null,
-      },
+        uid: decoded.uid,
+        email: decoded.email,
+      }
     });
   } catch (err) {
     console.error(err);
@@ -50,28 +45,32 @@ export const login = async (req, res) => {
   }
 };
 
+// Enviar email de redefinição de senha
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   if (!email) return res.status(400).json({ message: "Email é obrigatório" });
 
   try {
+    // Gera link de redefinição de senha no Firebase
     const link = await admin.auth().generatePasswordResetLink(email);
 
+    // Configura Nodemailer com seu e-mail (remetente)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
+        user: process.env.EMAIL_USER, // seu e-mail
+        pass: process.env.EMAIL_PASS  // senha de app
+      }
     });
 
+    // Mensagem do e-mail
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: email,
+      to: email, // e-mail do usuário
       subject: 'Redefinição de senha',
       html: `<p>Olá! Clique no link abaixo para redefinir sua senha:</p>
-             <a href="${link}">Redefinir senha</a>`,
+             <a href="${link}">Redefinir senha</a>`
     };
 
     await transporter.sendMail(mailOptions);
@@ -84,6 +83,6 @@ export const forgotPassword = async (req, res) => {
 };
 
 export const logout = (req, res) => {
-  res.clearCookie('token');
+  res.clearCookie('token'); // remove cookie
   res.json({ message: 'Logout realizado' });
 };
