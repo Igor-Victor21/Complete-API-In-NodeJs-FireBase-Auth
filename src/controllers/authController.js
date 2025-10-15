@@ -34,7 +34,7 @@ export const login = async (req, res) => {
       maxAge: 60 * 60 * 1000, // 1h
     });
 
-    // Retorna somente dados básicos
+    // Busca dados básicos do usuário
     const userRecord = await admin.auth().getUser(decoded.uid);
 
     return res.json({
