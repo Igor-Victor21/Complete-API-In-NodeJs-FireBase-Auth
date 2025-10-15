@@ -36,7 +36,7 @@ export const login = async (req, res) => {
     return res.json({
       user: {
         uid: decoded.uid,
-        email: UserRecord.email,
+        email: decoded.email,
       }
     });
   } catch (err) {
