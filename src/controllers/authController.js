@@ -37,7 +37,6 @@ export const login = async (req, res) => {
     // Retorna informações do usuário para o front
     return res.json({
       user: {
-        uid: decoded.uid,
         email: decoded.email,
       }
     });
