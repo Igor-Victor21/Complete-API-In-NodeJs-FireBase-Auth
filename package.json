@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "description": "API que se conecta no banco de dados \"FireStore\" utilizando node.js e express, com documentação",
   "main": "index.js",
+  "type": "module",
+
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js",
     "dev": "nodemon index.js"
   },
   "repository": {
-    "type": "module",
+    "type": "git",
     "url": "git+https://github.com/Igor-Victor21/API-Firestore-In-NodeJs-Express.git"
   },
   "author": "",
